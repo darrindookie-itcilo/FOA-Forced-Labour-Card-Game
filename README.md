@@ -1,17 +1,18 @@
-# Break the Chain
+# FOA–Forced Labour Card Game
 
-A facilitator-led cooperative learning game for an ITCILO session on social dialogue and forced labour.
+A simple interactive learning game for an ITCILO session on freedom of association, social dialogue and forced labour.
 
-## Play online
+The game is a static, offline-friendly website with two modes:
 
-The GitHub Pages site is deployed from the `site` directory.
+- **Facilitator mode:** use the projected board with 24 printable instrument cards. The facilitator can break a link immediately; the response check is optional.
+- **Team Challenge:** each team receives the same virtual hand of eight cards for every link, chooses exactly three and races to break all six links. A successful response covers immediate protection, remedy or enforcement, and prevention or worker voice; it also includes a Workers card and at least two actor groups.
 
-## Classroom use
+For a hybrid group of 16, the recommended set-up is four teams of four, with two in-person and two online participants on each team. Each team needs one device and uses the same public URL. There are no accounts and no shared server state.
 
-- Eight participants receive three instrument cards each.
-- Participants may describe their cards but may not show them.
-- The group has 2 minutes 30 seconds to propose a combined response for each risk.
-- A link is broken when the response covers immediate protection, remedy and enforcement, and prevention with worker voice.
-- The full facilitator guide and printable card pack are built into the site.
+## Classroom timing
 
-Suggested duration: 25–30 minutes.
+- Set-up and rules: 3 minutes
+- Six links: 15–18 minutes
+- Debrief: 7–10 minutes
+
+Open the site and choose a mode. Complete instructions are built into the game.
