@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0056a6">
-  <meta name="description" content="A facilitated cooperative game about social dialogue and forced labour.">
-  <title>Break the Chain</title>
+  <meta name="description" content="A simple card game about freedom of association, social dialogue and forced labour.">
+  <title>FOA–Forced Labour Card Game</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230056a6'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round'%3E%3Cpath d='M27 20h-7a12 12 0 0 0 0 24h7'/%3E%3Cpath d='M37 20h7a12 12 0 0 1 0 24h-7'/%3E%3C/g%3E%3Cpath d='m28 25 8 14M36 25l-8 14' stroke='%23ffca28' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -16,7 +16,7 @@
         <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>
         <div>
           <p class="eyebrow">ITCILO · Social Dialogue Cluster</p>
-          <h1>Break the Chain</h1>
+          <h1>FOA–Forced Labour Card Game</h1>
         </div>
       </div>
       <nav class="header-actions" aria-label="Game controls">
@@ -38,7 +38,10 @@
             <p class="eyebrow" id="chainHeading">Shared objective</p>
             <h2>Break all six links with complete responses</h2>
           </div>
-          <div class="score-chip"><strong id="scoreValue">0</strong><span>/ 6 links</span></div>
+          <div class="score-area">
+            <span class="mode-chip" id="modeChip">Choose a mode</span>
+            <div class="score-chip"><strong id="scoreValue">0</strong><span>/ 6 links</span></div>
+          </div>
         </div>
         <div class="chain-track" id="chainTrack" role="list" aria-label="Six risk links"></div>
       </section>
@@ -55,7 +58,20 @@
             <span class="question-icon" aria-hidden="true">?</span>
             <p id="questionText"></p>
           </div>
-          <p class="table-rule"><strong>At the table:</strong> describe your cards, but do not show them.</p>
+          <p class="table-rule" id="tableRule"><strong>At the table:</strong> describe your cards, but do not show them.</p>
+
+          <section class="team-hand-panel" id="teamHandPanel" hidden aria-labelledby="teamHandHeading">
+            <div class="team-hand-heading">
+              <div>
+                <p class="eyebrow">Your virtual hand</p>
+                <h3 id="teamHandHeading">Choose exactly 3 cards</h3>
+              </div>
+              <span class="selected-count" id="selectedCount">0 / 3 selected</span>
+            </div>
+            <div class="virtual-hand-grid" id="virtualHand"></div>
+            <p class="team-feedback" id="teamFeedback" aria-live="polite">Discuss the eight cards, then select the strongest three-card response.</p>
+            <button class="button button-success test-cards-button" id="testCardsButton" type="button" disabled>Test our 3 cards</button>
+          </section>
         </article>
 
         <aside class="control-panel" aria-label="Facilitator controls">
@@ -70,7 +86,7 @@
             </div>
           </div>
 
-          <div class="facilitator-step">
+          <div class="facilitator-step facilitator-only">
             <p class="step-number">1</p>
             <div>
               <h3>Listen for a joint response</h3>
@@ -78,9 +94,9 @@
             </div>
           </div>
 
-          <button class="button button-reveal" id="revealButton" type="button">Reveal response check</button>
+          <button class="button button-reveal facilitator-only" id="revealButton" type="button">Reveal optional response check</button>
 
-          <div class="response-check" id="responseCheck" hidden>
+          <div class="response-check facilitator-only" id="responseCheck" hidden>
             <p class="check-intro">Tick an outcome when the proposed response achieves it.</p>
             <div id="criteriaList"></div>
             <details class="facilitator-cue">
@@ -90,8 +106,8 @@
             <p class="legal-note" id="legalNote"></p>
           </div>
 
-          <div class="decision-actions">
-            <button class="button button-success" id="breakButton" type="button" disabled>Break this link</button>
+          <div class="decision-actions facilitator-only">
+            <button class="button button-success" id="breakButton" type="button">Break this link</button>
             <button class="button button-warning" id="unresolvedButton" type="button">Keep it unresolved</button>
           </div>
           <button class="button button-next" id="nextButton" type="button" disabled>Next risk <span aria-hidden="true">→</span></button>
@@ -105,17 +121,27 @@
   <dialog class="modal start-modal" id="startDialog">
     <div class="modal-accent"></div>
     <div class="modal-content">
-      <p class="eyebrow">Cooperative classroom game · 25–30 minutes</p>
-      <h2>Six risks. Twenty-four instruments. One shared chain.</h2>
-      <p class="modal-lead">Eight participants each receive three instrument cards. Nobody has a complete response alone.</p>
-      <ol class="start-steps">
-        <li><span>1</span><div><strong>Print, cut and shuffle</strong><p>The pack contains 24 cards: Government, Employers and Workers.</p></div></li>
-        <li><span>2</span><div><strong>Deal three cards each</strong><p>Participants may describe their cards, but may not show them.</p></div></li>
-        <li><span>3</span><div><strong>Build six joint responses</strong><p>Break a link only when protection, remedy and prevention are all covered.</p></div></li>
-      </ol>
-      <div class="modal-actions">
-        <button class="button button-secondary" id="startPrintButton" type="button">Print game pack</button>
-        <button class="button button-primary button-large" id="startGameButton" type="button">Start the game</button>
+      <p class="eyebrow">Interactive classroom game · about 25 minutes</p>
+      <h2>Choose how your group will play</h2>
+      <p class="modal-lead">Both versions use the same six forced-labour risks and show why worker voice and joint action matter.</p>
+      <div class="mode-choice-grid">
+        <section class="mode-choice">
+          <span class="mode-label">In the room</span>
+          <h3>Facilitator + printed cards</h3>
+          <p>Deal the 24 printed cards. You decide when a response is credible and may break a link without revealing the response check.</p>
+          <div class="mode-actions">
+            <button class="button button-secondary" id="startPrintButton" type="button">Print game pack</button>
+            <button class="button button-primary" id="startFacilitatorButton" type="button">Start facilitator mode</button>
+          </div>
+        </section>
+        <section class="mode-choice mode-choice-team">
+          <span class="mode-label">Hybrid or online</span>
+          <h3>Team Challenge</h3>
+          <p>Each team gets the same hand of eight virtual cards. Choose three cards, beat the timer and race to break all six links.</p>
+          <label class="team-name-label" for="teamNameInput">Team name <span>(optional)</span></label>
+          <input class="team-name-input" id="teamNameInput" type="text" maxlength="30" placeholder="e.g. Team Blue" autocomplete="off">
+          <button class="button button-primary" id="startTeamButton" type="button">Start Team Challenge</button>
+        </section>
       </div>
       <button class="text-button" id="startHowButton" type="button">Read the full facilitator instructions</button>
     </div>
@@ -125,46 +151,47 @@
     <div class="modal-header">
       <div>
         <p class="eyebrow">Facilitator guide</p>
-        <h2>How to run Break the Chain</h2>
+        <h2>How to run the game</h2>
       </div>
       <button class="close-button" data-close="instructionsDialog" type="button" aria-label="Close instructions">×</button>
     </div>
     <div class="instruction-grid">
       <section>
-        <h3>Before the activity</h3>
+        <h3>Option A · Facilitator mode</h3>
         <ol>
           <li>Print the game pack on A4 paper or card and cut out the 24 instrument cards.</li>
           <li>Shuffle all cards together. With eight participants, deal exactly three to each person.</li>
           <li>Project this game and keep control of the facilitator panel.</li>
-          <li>Explain that card categories represent different contributions—not equal legal responsibility.</li>
+          <li>After discussion, select <strong>Break this link</strong>. The response check is optional and does not need to be revealed.</li>
         </ol>
       </section>
       <section>
-        <h3>For each link</h3>
+        <h3>Option B · Team Challenge</h3>
         <ol>
-          <li>Read the risk aloud and start the 2 minute 30 second timer.</li>
-          <li>Participants describe relevant cards without showing them and agree a joint response.</li>
-          <li>Select <strong>Reveal response check</strong>. Tick the three outcomes their response covers.</li>
-          <li>Break the link when all three outcomes are covered. Otherwise leave it unresolved and continue.</li>
+          <li>Create teams and give each team the public game link. One device controls the game for that team.</li>
+          <li>For a hybrid group of 16, use four teams of four: two in-person and two online participants per team.</li>
+          <li>For each link, discuss the eight virtual cards and choose exactly three before time runs out.</li>
+          <li>Select <strong>Test our 3 cards</strong>. The game identifies missing outcomes without revealing an answer. First team through all six links wins.</li>
         </ol>
       </section>
       <section>
-        <h3>Facilitation principles</h3>
+        <h3>What makes a strong response?</h3>
         <ul>
-          <li>There is no single correct card combination. Reward defensible alternatives.</li>
+          <li>It covers immediate protection, remedy or enforcement, and prevention or worker voice.</li>
+          <li>It includes a Workers card and combines at least two actor groups.</li>
+          <li>More than one three-card combination can work.</li>
           <li>Do not delay urgent protection while dialogue takes place.</li>
           <li>Worker voice supports detection and sustainable solutions; workers are not responsible for violations against them.</li>
-          <li>ILO indicators are clues for inquiry, not a numerical test or automatic legal finding.</li>
         </ul>
       </section>
       <section>
         <h3>Suggested timing</h3>
         <dl class="timing-list">
           <div><dt>Set-up and rules</dt><dd>3 min</dd></div>
-          <div><dt>Six rounds</dt><dd>15 min</dd></div>
-          <div><dt>Reveal and debrief</dt><dd>7–10 min</dd></div>
+          <div><dt>Six links</dt><dd>15–18 min</dd></div>
+          <div><dt>Debrief</dt><dd>7–10 min</dd></div>
         </dl>
-        <p><strong>No printer?</strong> Write the 24 card titles on slips of paper. The activity depends on hidden hands, not polished cards.</p>
+        <p><strong>Online note:</strong> the game does not share live state between devices. Each team plays its own copy, while teammates talk in the same room or breakout room.</p>
       </section>
     </div>
     <div class="source-strip">
