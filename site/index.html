@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0056a6">
+  <meta name="description" content="A facilitated cooperative game about social dialogue and forced labour.">
+  <title>Break the Chain</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230056a6'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round'%3E%3Cpath d='M27 20h-7a12 12 0 0 0 0 24h7'/%3E%3Cpath d='M37 20h7a12 12 0 0 1 0 24h-7'/%3E%3C/g%3E%3Cpath d='m28 25 8 14M36 25l-8 14' stroke='%23ffca28' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>
+        <div>
+          <p class="eyebrow">ITCILO · Social Dialogue Cluster</p>
+          <h1>Break the Chain</h1>
+        </div>
+      </div>
+      <nav class="header-actions" aria-label="Game controls">
+        <button class="button button-quiet" id="howButton" type="button">How to play</button>
+        <button class="button button-quiet" id="printButton" type="button">Print game pack</button>
+        <button class="icon-button" id="fullscreenButton" type="button" aria-label="Enter fullscreen" title="Fullscreen (F)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+        </button>
+        <button class="icon-button" id="resetButton" type="button" aria-label="Reset game" title="Reset game">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6"/></svg>
+        </button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="chain-section" aria-labelledby="chainHeading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow" id="chainHeading">Shared objective</p>
+            <h2>Break all six links with complete responses</h2>
+          </div>
+          <div class="score-chip"><strong id="scoreValue">0</strong><span>/ 6 links</span></div>
+        </div>
+        <div class="chain-track" id="chainTrack" role="list" aria-label="Six risk links"></div>
+      </section>
+
+      <section class="play-grid">
+        <article class="risk-card" aria-labelledby="riskTitle">
+          <div class="risk-card-topline">
+            <div class="round-badge">LINK <span id="roundNumber">1</span> OF 6</div>
+            <div class="sector-badge" id="sectorBadge">Coffee</div>
+          </div>
+          <h2 id="riskTitle">The withheld harvest wages</h2>
+          <p class="scenario" id="scenarioText"></p>
+          <div class="question-panel">
+            <span class="question-icon" aria-hidden="true">?</span>
+            <p id="questionText"></p>
+          </div>
+          <p class="table-rule"><strong>At the table:</strong> describe your cards, but do not show them.</p>
+        </article>
+
+        <aside class="control-panel" aria-label="Facilitator controls">
+          <div class="timer-block">
+            <div>
+              <p class="eyebrow">Discussion time</p>
+              <div class="timer" id="timer" role="timer" aria-live="off">02:30</div>
+            </div>
+            <div class="timer-actions">
+              <button class="button button-primary" id="timerButton" type="button">Start timer</button>
+              <button class="button button-small" id="addTimeButton" type="button">+30 sec</button>
+            </div>
+          </div>
+
+          <div class="facilitator-step">
+            <p class="step-number">1</p>
+            <div>
+              <h3>Listen for a joint response</h3>
+              <p>Participants combine the instruments in their hands. Accept any credible combination.</p>
+            </div>
+          </div>
+
+          <button class="button button-reveal" id="revealButton" type="button">Reveal response check</button>
+
+          <div class="response-check" id="responseCheck" hidden>
+            <p class="check-intro">Tick an outcome when the proposed response achieves it.</p>
+            <div id="criteriaList"></div>
+            <details class="facilitator-cue">
+              <summary>Suggested instruments</summary>
+              <p id="suggestedCards"></p>
+            </details>
+            <p class="legal-note" id="legalNote"></p>
+          </div>
+
+          <div class="decision-actions">
+            <button class="button button-success" id="breakButton" type="button" disabled>Break this link</button>
+            <button class="button button-warning" id="unresolvedButton" type="button">Keep it unresolved</button>
+          </div>
+          <button class="button button-next" id="nextButton" type="button" disabled>Next risk <span aria-hidden="true">→</span></button>
+        </aside>
+      </section>
+
+      <p class="footer-note">A learning simulation—not a legal determination. Immediate safety, assistance and enforcement duties are never negotiable.</p>
+    </main>
+  </div>
+
+  <dialog class="modal start-modal" id="startDialog">
+    <div class="modal-accent"></div>
+    <div class="modal-content">
+      <p class="eyebrow">Cooperative classroom game · 25–30 minutes</p>
+      <h2>Six risks. Twenty-four instruments. One shared chain.</h2>
+      <p class="modal-lead">Eight participants each receive three instrument cards. Nobody has a complete response alone.</p>
+      <ol class="start-steps">
+        <li><span>1</span><div><strong>Print, cut and shuffle</strong><p>The pack contains 24 cards: Government, Employers and Workers.</p></div></li>
+        <li><span>2</span><div><strong>Deal three cards each</strong><p>Participants may describe their cards, but may not show them.</p></div></li>
+        <li><span>3</span><div><strong>Build six joint responses</strong><p>Break a link only when protection, remedy and prevention are all covered.</p></div></li>
+      </ol>
+      <div class="modal-actions">
+        <button class="button button-secondary" id="startPrintButton" type="button">Print game pack</button>
+        <button class="button button-primary button-large" id="startGameButton" type="button">Start the game</button>
+      </div>
+      <button class="text-button" id="startHowButton" type="button">Read the full facilitator instructions</button>
+    </div>
+  </dialog>
+
+  <dialog class="modal instructions-modal" id="instructionsDialog">
+    <div class="modal-header">
+      <div>
+        <p class="eyebrow">Facilitator guide</p>
+        <h2>How to run Break the Chain</h2>
+      </div>
+      <button class="close-button" data-close="instructionsDialog" type="button" aria-label="Close instructions">×</button>
+    </div>
+    <div class="instruction-grid">
+      <section>
+        <h3>Before the activity</h3>
+        <ol>
+          <li>Print the game pack on A4 paper or card and cut out the 24 instrument cards.</li>
+          <li>Shuffle all cards together. With eight participants, deal exactly three to each person.</li>
+          <li>Project this game and keep control of the facilitator panel.</li>
+          <li>Explain that card categories represent different contributions—not equal legal responsibility.</li>
+        </ol>
+      </section>
+      <section>
+        <h3>For each link</h3>
+        <ol>
+          <li>Read the risk aloud and start the 2 minute 30 second timer.</li>
+          <li>Participants describe relevant cards without showing them and agree a joint response.</li>
+          <li>Select <strong>Reveal response check</strong>. Tick the three outcomes their response covers.</li>
+          <li>Break the link when all three outcomes are covered. Otherwise leave it unresolved and continue.</li>
+        </ol>
+      </section>
+      <section>
+        <h3>Facilitation principles</h3>
+        <ul>
+          <li>There is no single correct card combination. Reward defensible alternatives.</li>
+          <li>Do not delay urgent protection while dialogue takes place.</li>
+          <li>Worker voice supports detection and sustainable solutions; workers are not responsible for violations against them.</li>
+          <li>ILO indicators are clues for inquiry, not a numerical test or automatic legal finding.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>Suggested timing</h3>
+        <dl class="timing-list">
+          <div><dt>Set-up and rules</dt><dd>3 min</dd></div>
+          <div><dt>Six rounds</dt><dd>15 min</dd></div>
+          <div><dt>Reveal and debrief</dt><dd>7–10 min</dd></div>
+        </dl>
+        <p><strong>No printer?</strong> Write the 24 card titles on slips of paper. The activity depends on hidden hands, not polished cards.</p>
+      </section>
+    </div>
+    <div class="source-strip">
+      <span>Reference points</span>
+      <a href="https://www.ilo.org/publications/ilo-indicators-forced-labour-1" target="_blank" rel="noreferrer">ILO Indicators of Forced Labour</a>
+      <a href="https://normlex.ilo.org/dyn/nrmlx_en/f?p=NORMLEXPUB:12100:0::NO::P12100_ILO_CODE:P029" target="_blank" rel="noreferrer">Protocol of 2014</a>
+    </div>
+  </dialog>
+
+  <dialog class="modal results-modal" id="resultsDialog">
+    <div class="results-symbol" id="resultsSymbol" aria-hidden="true">6</div>
+    <p class="eyebrow">Simulation complete</p>
+    <h2 id="resultsTitle">The chain is broken</h2>
+    <p class="results-copy" id="resultsCopy"></p>
+    <div class="debrief-box">
+      <h3>Debrief together</h3>
+      <ol>
+        <li>Which information was easiest—or hardest—to surface?</li>
+        <li>Which actions had to happen immediately?</li>
+        <li>What remedied harm, and what prevented recurrence?</li>
+        <li>What would have been missing if one constituency were absent?</li>
+        <li>Who held legal power, and who held knowledge or worker trust?</li>
+      </ol>
+    </div>
+    <p class="closing-message">Social dialogue strengthens prevention and implementation. It does not replace protection, remedy or enforcement.</p>
+    <div class="modal-actions">
+      <button class="button button-secondary" id="reviewButton" type="button">Review the board</button>
+      <button class="button button-primary" id="playAgainButton" type="button">Play again</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div id="printZone" aria-hidden="true"></div>
+  <script src="app.js"></script>
+</body>
+</html>
