@@ -25,8 +25,9 @@
         <button class="icon-button" id="fullscreenButton" type="button" aria-label="Enter fullscreen" title="Fullscreen (F)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
         </button>
-        <button class="icon-button" id="resetButton" type="button" aria-label="Reset game" title="Reset game">
+        <button class="reset-button" id="resetButton" type="button" aria-label="Reset game" title="Reset game and clear saved progress">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6"/></svg>
+          <span>Reset</span>
         </button>
       </nav>
     </header>
@@ -36,11 +37,11 @@
         <div class="section-heading">
           <div>
             <p class="eyebrow" id="chainHeading">Shared objective</p>
-            <h2>Break all six links with complete responses</h2>
+            <h2 id="chainObjective">Break all six links with complete responses</h2>
           </div>
           <div class="score-area">
             <span class="mode-chip" id="modeChip">Choose a mode</span>
-            <div class="score-chip"><strong id="scoreValue">0</strong><span>/ 6 links</span></div>
+            <div class="score-chip"><strong id="scoreValue">0</strong><span id="scoreTotal">/ 6 links</span></div>
           </div>
         </div>
         <div class="chain-track" id="chainTrack" role="list" aria-label="Six risk links"></div>
@@ -49,11 +50,12 @@
       <section class="play-grid">
         <article class="risk-card" aria-labelledby="riskTitle">
           <div class="risk-card-topline">
-            <div class="round-badge">LINK <span id="roundNumber">1</span> OF 6</div>
+            <div class="round-badge">LINK <span id="roundNumber">1</span> OF <span id="roundTotal">6</span></div>
             <div class="sector-badge" id="sectorBadge">Coffee</div>
           </div>
           <h2 id="riskTitle">The withheld harvest wages</h2>
           <p class="scenario" id="scenarioText"></p>
+          <p class="fictional-note">Fictional composite, for training purposes.</p>
           <div class="question-panel">
             <span class="question-icon" aria-hidden="true">?</span>
             <p id="questionText"></p>
@@ -123,7 +125,13 @@
     <div class="modal-content">
       <p class="eyebrow">Interactive classroom game · about 25 minutes</p>
       <h2>Choose how your group will play</h2>
-      <p class="modal-lead">Both versions use the same six forced-labour risks and show why worker voice and joint action matter.</p>
+      <p class="modal-lead">Both versions draw from the same six forced-labour risks and show why worker voice and joint action matter.</p>
+      <fieldset class="link-count-picker">
+        <legend>How many links will you play?</legend>
+        <label><input type="radio" name="linkCount" value="4"><span><strong>4 links</strong><small>Quick · about 12 min</small></span></label>
+        <label><input type="radio" name="linkCount" value="5"><span><strong>5 links</strong><small>Standard · about 15 min</small></span></label>
+        <label><input type="radio" name="linkCount" value="6" checked><span><strong>6 links</strong><small>Full game · about 18 min</small></span></label>
+      </fieldset>
       <div class="mode-choice-grid">
         <section class="mode-choice">
           <span class="mode-label">In the room</span>
@@ -137,7 +145,7 @@
         <section class="mode-choice mode-choice-team">
           <span class="mode-label">Hybrid or online</span>
           <h3>Team Challenge</h3>
-          <p>Each team gets the same hand of eight virtual cards. Choose three cards, beat the timer and race to break all six links.</p>
+          <p>Each team gets the same hand of eight virtual cards. Choose three cards, beat the timer and race to break every selected link.</p>
           <label class="team-name-label" for="teamNameInput">Team name <span>(optional)</span></label>
           <input class="team-name-input" id="teamNameInput" type="text" maxlength="30" placeholder="e.g. Team Blue" autocomplete="off">
           <button class="button button-primary" id="startTeamButton" type="button">Start Team Challenge</button>
@@ -171,7 +179,7 @@
           <li>Create teams and give each team the public game link. One device controls the game for that team.</li>
           <li>For a hybrid group of 16, use four teams of four: two in-person and two online participants per team.</li>
           <li>For each link, discuss the eight virtual cards and choose exactly three before time runs out.</li>
-          <li>Select <strong>Test our 3 cards</strong>. The game identifies missing outcomes without revealing an answer. First team through all six links wins.</li>
+          <li>Select <strong>Test our 3 cards</strong>. The game identifies missing outcomes without revealing an answer. First team through its selected links wins.</li>
         </ol>
       </section>
       <section>
@@ -188,7 +196,7 @@
         <h3>Suggested timing</h3>
         <dl class="timing-list">
           <div><dt>Set-up and rules</dt><dd>3 min</dd></div>
-          <div><dt>Six links</dt><dd>15–18 min</dd></div>
+          <div><dt>Four to six links</dt><dd>12–18 min</dd></div>
           <div><dt>Debrief</dt><dd>7–10 min</dd></div>
         </dl>
         <p><strong>Online note:</strong> the game does not share live state between devices. Each team plays its own copy, while teammates talk in the same room or breakout room.</p>
@@ -202,10 +210,19 @@
   </dialog>
 
   <dialog class="modal results-modal" id="resultsDialog">
-    <div class="results-symbol" id="resultsSymbol" aria-hidden="true">6</div>
     <p class="eyebrow">Simulation complete</p>
     <h2 id="resultsTitle">The chain is broken</h2>
     <p class="results-copy" id="resultsCopy"></p>
+    <div class="results-stats" aria-label="Game result">
+      <div><span>Team</span><strong id="resultsTeamValue">—</strong></div>
+      <div><span>Links broken</span><strong id="resultsLinksValue">0 / 6</strong></div>
+      <div><span>Elapsed time</span><strong id="resultsTimeValue">0:00</strong></div>
+    </div>
+    <p class="results-instruction" id="reportTimeInstruction">Tell the facilitator your time — online teams, post it in the chat.</p>
+    <div class="foa-finding" id="foaFinding" hidden>
+      <p class="eyebrow">Freedom of association finding</p>
+      <p id="foaFindingText"></p>
+    </div>
     <div class="debrief-box">
       <h3>Debrief together</h3>
       <ol>
@@ -219,7 +236,7 @@
     <p class="closing-message">Social dialogue strengthens prevention and implementation. It does not replace protection, remedy or enforcement.</p>
     <div class="modal-actions">
       <button class="button button-secondary" id="reviewButton" type="button">Review the board</button>
-      <button class="button button-primary" id="playAgainButton" type="button">Play again</button>
+      <button class="button button-reset-large" id="resetResultsButton" type="button">Reset for the next game</button>
     </div>
   </dialog>
 
