@@ -126,14 +126,18 @@ const risks = [
   }
 ];
 
-const STORAGE_KEY = "foa-forced-labour-card-game-v3";
+const STORAGE_KEY = "foa-forced-labour-card-game-v4";
+const DEFAULT_LINK_COUNT = 6;
 const OUTCOME_LABELS = {
   protect: "immediate protection",
   remedy: "remedy or enforcement",
   prevent: "prevention or worker voice"
 };
 
-const defaultState = (mode = null, teamName = "") => ({
+const normaliseLinkCount = value => [4, 5, 6].includes(Number(value)) ? Number(value) : DEFAULT_LINK_COUNT;
+const roundSeconds = mode => mode === "team" ? 90 : 150;
+
+const defaultState = (mode = null, teamName = "", linkCount = DEFAULT_LINK_COUNT) => ({
   current: 0,
   broken: Array(risks.length).fill(false),
   resolved: Array(risks.length).fill(false),
@@ -142,12 +146,15 @@ const defaultState = (mode = null, teamName = "") => ({
   selected: Array.from({ length: risks.length }, () => []),
   feedback: Array(risks.length).fill(""),
   attempts: Array(risks.length).fill(0),
-  seconds: 150,
+  seconds: roundSeconds(mode),
   elapsedSeconds: 0,
+  startedAt: null,
+  completedAt: null,
   running: false,
   started: false,
   mode,
-  teamName
+  teamName,
+  linkCount: normaliseLinkCount(linkCount)
 });
 
 let state = loadState();
@@ -156,13 +163,16 @@ let toastTimeout = null;
 
 const $ = (id) => document.getElementById(id);
 const els = {
-  chainTrack: $("chainTrack"), score: $("scoreValue"), modeChip: $("modeChip"), round: $("roundNumber"), sector: $("sectorBadge"),
+  chainTrack: $("chainTrack"), chainObjective: $("chainObjective"), score: $("scoreValue"), scoreTotal: $("scoreTotal"), modeChip: $("modeChip"),
+  round: $("roundNumber"), roundTotal: $("roundTotal"), sector: $("sectorBadge"),
   title: $("riskTitle"), scenario: $("scenarioText"), question: $("questionText"), tableRule: $("tableRule"), timer: $("timer"),
   timerButton: $("timerButton"), addTime: $("addTimeButton"), reveal: $("revealButton"),
   response: $("responseCheck"), criteria: $("criteriaList"), suggested: $("suggestedCards"), legal: $("legalNote"),
   break: $("breakButton"), unresolved: $("unresolvedButton"), next: $("nextButton"),
   teamPanel: $("teamHandPanel"), virtualHand: $("virtualHand"), selectedCount: $("selectedCount"),
   teamFeedback: $("teamFeedback"), testCards: $("testCardsButton"), teamNameInput: $("teamNameInput"),
+  resultsTeam: $("resultsTeamValue"), resultsLinks: $("resultsLinksValue"), resultsTime: $("resultsTimeValue"),
+  reportTime: $("reportTimeInstruction"), foaFinding: $("foaFinding"), foaFindingText: $("foaFindingText"),
   start: $("startDialog"), instructions: $("instructionsDialog"), results: $("resultsDialog"), toast: $("toast"), printZone: $("printZone")
 };
 
@@ -170,7 +180,9 @@ function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved && Array.isArray(saved.broken) && saved.broken.length === risks.length) {
-      const restored = { ...defaultState(saved.mode, saved.teamName), ...saved, running: false };
+      const restored = { ...defaultState(saved.mode, saved.teamName, saved.linkCount), ...saved, running: false };
+      restored.linkCount = normaliseLinkCount(saved.linkCount);
+      restored.current = Math.min(Math.max(0, Number(saved.current) || 0), restored.linkCount - 1);
       restored.selected = Array.isArray(saved.selected) && saved.selected.length === risks.length ? saved.selected : defaultState().selected;
       restored.feedback = Array.isArray(saved.feedback) && saved.feedback.length === risks.length ? saved.feedback : defaultState().feedback;
       return restored;
@@ -203,7 +215,11 @@ function renderMode() {
 
 function renderChain() {
   els.chainTrack.innerHTML = "";
-  risks.forEach((risk, index) => {
+  els.chainTrack.style.setProperty("--link-count", state.linkCount);
+  els.chainTrack.setAttribute("aria-label", `${state.linkCount} risk links`);
+  els.chainObjective.textContent = `Break all ${state.linkCount} links with complete responses`;
+  els.scoreTotal.textContent = `/ ${state.linkCount} links`;
+  risks.slice(0, state.linkCount).forEach((risk, index) => {
     const link = document.createElement("div");
     link.className = "chain-link";
     link.setAttribute("role", "listitem");
@@ -215,13 +231,14 @@ function renderChain() {
     link.setAttribute("aria-label", `Link ${index + 1}: ${risk.short}. ${status}.`);
     els.chainTrack.appendChild(link);
   });
-  els.score.textContent = state.broken.filter(Boolean).length;
+  els.score.textContent = state.broken.slice(0, state.linkCount).filter(Boolean).length;
 }
 
 function renderRisk() {
   const risk = risks[state.current];
   const isTeam = state.mode === "team";
   els.round.textContent = state.current + 1;
+  els.roundTotal.textContent = state.linkCount;
   els.sector.textContent = risk.sector;
   els.title.textContent = risk.title;
   els.scenario.textContent = risk.scenario;
@@ -306,7 +323,7 @@ function testTeamSelection() {
   if (groups.size < 2) hints.push("instruments from at least two actor groups");
 
   if (hints.length === 0) {
-    state.feedback[state.current] = "Strong joint response: protection, remedy and prevention are covered—with worker voice included.";
+    state.feedback[state.current] = buildSuccessBreakdown(risk, selection);
     resolveCurrent(true);
     return;
   }
@@ -314,6 +331,28 @@ function testTeamSelection() {
   state.feedback[state.current] = `Not yet. Reconsider your cards: the response still needs ${joinNaturalLanguage(hints)}.`;
   renderTeamHand();
   saveState();
+}
+
+function buildSuccessBreakdown(risk, selection) {
+  const used = new Set();
+  const outcomeCard = (outcome, preferWorker = false) => {
+    const candidates = selection.filter(id => (risk.effects[id] || []).includes(outcome));
+    const preferred = preferWorker ? candidates.filter(id => id.startsWith("W")) : candidates;
+    const id = preferred.find(candidate => !used.has(candidate))
+      || preferred[0]
+      || candidates.find(candidate => !used.has(candidate))
+      || candidates[0];
+    if (id) used.add(id);
+    const card = instrumentById(id);
+    return card ? `${card.id} · ${card.title}` : "Covered";
+  };
+  const groups = [...new Set(selection.map(id => instrumentById(id).group))];
+  return [
+    `Protection: ${outcomeCard("protect")}`,
+    `Remedy/enforcement: ${outcomeCard("remedy")}`,
+    `Prevention/worker voice: ${outcomeCard("prevent", true)}`,
+    `Actor groups: ${groups.join(" + ")}`
+  ].join("\n");
 }
 
 function joinNaturalLanguage(items) {
@@ -327,7 +366,7 @@ function updateDecisionState() {
   els.break.disabled = done;
   els.unresolved.disabled = done;
   els.next.disabled = !done;
-  els.next.innerHTML = state.current === risks.length - 1 ? "See results <span aria-hidden=\"true\">→</span>" : "Next risk <span aria-hidden=\"true\">→</span>";
+  els.next.innerHTML = state.current === state.linkCount - 1 ? "See results <span aria-hidden=\"true\">→</span>" : "Next risk <span aria-hidden=\"true\">→</span>";
 }
 
 function renderTimer() {
@@ -354,7 +393,7 @@ function runTimer() {
 }
 
 function toggleTimer() {
-  if (state.seconds === 0) state.seconds = 150;
+  if (state.seconds === 0) state.seconds = roundSeconds(state.mode);
   state.running = !state.running;
   if (state.running) runTimer();
   else clearInterval(interval);
@@ -365,13 +404,14 @@ function toggleTimer() {
 function stopTimer(reset = false) {
   clearInterval(interval);
   state.running = false;
-  if (reset) state.seconds = 150;
+  if (reset) state.seconds = roundSeconds(state.mode);
   renderTimer();
 }
 
 function resolveCurrent(isBroken) {
   state.resolved[state.current] = true;
   state.broken[state.current] = isBroken;
+  if (state.mode === "team" && isBroken && state.current === state.linkCount - 1) state.completedAt = Date.now();
   stopTimer(false);
   render();
   showToast(isBroken ? "Link broken! Protection, remedy and prevention are covered." : "Link remains unresolved. Carry the missing outcomes into the debrief.");
@@ -379,9 +419,9 @@ function resolveCurrent(isBroken) {
 
 function nextRisk() {
   if (!state.resolved[state.current]) return;
-  if (state.current < risks.length - 1) {
+  if (state.current < state.linkCount - 1) {
     state.current += 1;
-    state.seconds = 150;
+    state.seconds = roundSeconds(state.mode);
     state.running = state.mode === "team";
     render();
     if (state.running) runTimer();
@@ -392,20 +432,36 @@ function nextRisk() {
 }
 
 function showResults() {
-  const score = state.broken.filter(Boolean).length;
-  $("resultsSymbol").textContent = score;
-  if (score === 6) {
-    $("resultsTitle").textContent = state.mode === "team" && state.teamName ? `${state.teamName} broke the chain!` : "All six links are broken";
-    const time = formatElapsed(state.elapsedSeconds);
+  const score = state.broken.slice(0, state.linkCount).filter(Boolean).length;
+  const isTeam = state.mode === "team";
+  const elapsedSeconds = isTeam && state.startedAt
+    ? Math.max(0, Math.floor(((state.completedAt || Date.now()) - state.startedAt) / 1000))
+    : state.elapsedSeconds;
+  const time = formatElapsed(elapsedSeconds);
+  els.resultsTeam.textContent = isTeam ? (state.teamName || "Team Challenge") : "Facilitator group";
+  els.resultsLinks.textContent = `${score} / ${state.linkCount}`;
+  els.resultsTime.textContent = time;
+  els.reportTime.hidden = !isTeam;
+  els.foaFinding.hidden = !isTeam;
+
+  if (isTeam) {
+    const workersPlayed = state.selected
+      .slice(0, state.linkCount)
+      .reduce((total, selection, index) => total + (state.broken[index] ? selection.filter(id => id.startsWith("W")).length : 0), 0);
+    els.foaFindingText.textContent = `You broke ${score} links. Every successful response required a Workers card—this is a rule of the game, designed to make worker voice visible. You played ${workersPlayed} workers’ instruments. The finding to discuss is that without freedom of association and the protections of Convention No. 87, independent worker voice, representation and collective action are weakened or blocked.`;
+  }
+
+  if (score === state.linkCount) {
+    $("resultsTitle").textContent = isTeam && state.teamName ? `${state.teamName} broke the chain!` : `All ${state.linkCount} links are broken`;
     $("resultsCopy").textContent = state.mode === "team"
-      ? `You completed all six links in ${time}. Every successful response combined protection, remedy, prevention and worker voice.`
+      ? `You completed all ${state.linkCount} links. Every successful response combined protection, remedy, prevention and worker voice.`
       : "For this simulation, every response combined immediate protection, remedy and sustainable prevention.";
-  } else if (score >= 4) {
+  } else if (score >= Math.ceil(state.linkCount * 2 / 3)) {
     $("resultsTitle").textContent = "A strong response—with gaps to examine";
-    $("resultsCopy").textContent = `${score} of 6 links were broken. The unresolved links show where authority, information, remedy or worker voice was missing.`;
+    $("resultsCopy").textContent = `${score} of ${state.linkCount} links were broken. The unresolved links show where authority, information, remedy or worker voice was missing.`;
   } else {
     $("resultsTitle").textContent = "The chain still holds";
-    $("resultsCopy").textContent = `${score} of 6 links were broken. Use the unresolved risks to identify what the group could not combine in time.`;
+    $("resultsCopy").textContent = `${score} of ${state.linkCount} links were broken. Use the unresolved risks to identify what the group could not combine in time.`;
   }
   els.results.showModal();
 }
@@ -421,17 +477,20 @@ function resetGame(confirmFirst = true) {
   clearInterval(interval);
   if (els.results.open) els.results.close();
   state = defaultState();
-  localStorage.removeItem(STORAGE_KEY);
   render();
+  localStorage.removeItem(STORAGE_KEY);
+  setLinkCountChoice(DEFAULT_LINK_COUNT);
   if (!els.start.open) els.start.showModal();
 }
 
 function startMode(mode) {
   const teamName = mode === "team" ? els.teamNameInput.value.trim() : "";
+  const linkCount = normaliseLinkCount(document.querySelector('input[name="linkCount"]:checked')?.value);
   clearInterval(interval);
-  state = defaultState(mode, teamName);
+  state = defaultState(mode, teamName, linkCount);
   state.started = true;
   state.running = mode === "team";
+  state.startedAt = mode === "team" ? Date.now() : null;
   if (els.start.open) els.start.close();
   render();
   if (state.running) runTimer();
@@ -440,12 +499,19 @@ function startMode(mode) {
 function restartSameMode() {
   const mode = state.mode || "facilitator";
   const teamName = state.teamName;
+  const linkCount = state.linkCount;
   clearInterval(interval);
-  state = defaultState(mode, teamName);
+  state = defaultState(mode, teamName, linkCount);
   state.started = true;
   state.running = mode === "team";
+  state.startedAt = mode === "team" ? Date.now() : null;
   render();
   if (state.running) runTimer();
+}
+
+function setLinkCountChoice(linkCount) {
+  const radio = document.querySelector(`input[name="linkCount"][value="${normaliseLinkCount(linkCount)}"]`);
+  if (radio) radio.checked = true;
 }
 
 function showToast(message) {
@@ -481,7 +547,7 @@ function buildPrintPack() {
       <div class="guide-section"><h2>Be generous</h2><p>There is no single correct combination. Accept any defensible proposal that achieves protection, remedy and prevention.</p></div>
       <div class="guide-section"><h2>Non-negotiable safeguards</h2><ul><li>Urgent protection and enforcement do not wait for dialogue.</li><li>Worker voice does not transfer responsibility to workers.</li><li>Indicators prompt inquiry; they are not a numerical legal test.</li></ul></div>
       <div class="guide-section"><h2>Debrief</h2><ol><li>What information did worker representatives surface?</li><li>Which actions had to be immediate?</li><li>What remedied harm versus preventing recurrence?</li><li>What was missing when a constituency could not contribute?</li></ol></div>
-      <div class="guide-section"><h2>Timing</h2><p>Set-up 3 min · Six links 15 min · Debrief 7–10 min.</p></div>
+      <div class="guide-section"><h2>Timing</h2><p>Set-up 3 min · Choose 4, 5 or 6 links · Activity 12–18 min · Debrief 7–10 min.</p></div>
     </div>`;
   els.printZone.appendChild(guide);
 }
@@ -516,7 +582,7 @@ function registerWebMCP() {
       description: "Move the visible board to one of the six forced-labour risk links.",
       inputSchema: { type: "object", properties: { link: { type: "integer", minimum: 1, maximum: 6 } }, required: ["link"], additionalProperties: false },
       annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute: async (input) => { if (!Number.isInteger(input?.link) || input.link < 1 || input.link > 6) throw new Error("link must be an integer from 1 to 6"); state.current = input.link - 1; stopTimer(true); render(); return { current_link: input.link, title: risks[state.current].title }; }
+      execute: async (input) => { if (!Number.isInteger(input?.link) || input.link < 1 || input.link > state.linkCount) throw new Error(`link must be an integer from 1 to ${state.linkCount}`); state.current = input.link - 1; stopTimer(true); render(); return { current_link: input.link, title: risks[state.current].title }; }
     },
     {
       name: "record_forced_labour_link_result",
@@ -546,7 +612,7 @@ els.unresolved.addEventListener("click", () => resolveCurrent(false));
 els.testCards.addEventListener("click", testTeamSelection);
 els.next.addEventListener("click", nextRisk);
 $("reviewButton").addEventListener("click", () => els.results.close());
-$("playAgainButton").addEventListener("click", () => { els.results.close(); restartSameMode(); });
+$("resetResultsButton").addEventListener("click", () => resetGame(false));
 document.querySelectorAll("[data-close]").forEach(button => button.addEventListener("click", () => $(button.dataset.close).close()));
 
 document.addEventListener("keydown", (event) => {
