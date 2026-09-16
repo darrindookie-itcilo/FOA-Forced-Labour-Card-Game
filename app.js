@@ -40,7 +40,9 @@ const risks = [
       ["Prevention and worker voice", "Regulate the contractor and use confidential worker input or monitoring before the next harvest."]
     ],
     suggested: ["G1", "G3", "E1", "E6", "W1", "W2"],
-    note: "Withholding wages can be an indicator of forced labour, particularly when it prevents a worker from leaving. Examine the full facts; do not use an indicator count as a legal test."
+    note: "Withholding wages can be an indicator of forced labour, particularly when it prevents a worker from leaving. Examine the full facts; do not use an indicator count as a legal test.",
+    hand: ["G1", "G3", "E1", "E5", "E6", "W1", "W2", "W7"],
+    effects: { G1: ["protect", "remedy"], G3: ["prevent"], E1: ["remedy"], E5: ["prevent"], E6: ["remedy", "prevent"], W1: ["protect", "prevent"], W2: ["prevent"], W7: ["prevent"] }
   },
   {
     sector: "Garments",
@@ -54,7 +56,9 @@ const risks = [
       ["Prevention and worker voice", "Guarantee independent access, safe complaints and joint monitoring of accommodation rules."]
     ],
     suggested: ["G1", "G2", "E3", "E7", "E8", "W1", "W5", "W6"],
-    note: "Restriction of movement may signal forced labour when it is used to prevent workers from leaving employment. Safety measures must be necessary, proportionate and non-coercive."
+    note: "Restriction of movement may signal forced labour when it is used to prevent workers from leaving employment. Safety measures must be necessary, proportionate and non-coercive.",
+    hand: ["G1", "G2", "E3", "E7", "E8", "W1", "W5", "W6"],
+    effects: { G1: ["protect", "remedy"], G2: ["remedy"], E3: ["protect"], E7: ["prevent"], E8: ["prevent"], W1: ["protect", "prevent"], W5: ["prevent"], W6: ["prevent"] }
   },
   {
     sector: "Cotton",
@@ -68,7 +72,9 @@ const risks = [
       ["Prevention and worker voice", "Review targets and incentives with independent worker representation and sustained oversight."]
     ],
     suggested: ["G4", "G8", "E5", "W3", "W5", "W6"],
-    note: "State-imposed forced labour engages direct government responsibility. Social dialogue can strengthen prevention and oversight, but it does not replace the duty to stop coercion and enforce the law."
+    note: "State-imposed forced labour engages direct government responsibility. Social dialogue can strengthen prevention and oversight, but it does not replace the duty to stop coercion and enforce the law.",
+    hand: ["G1", "G4", "G8", "E5", "E7", "W3", "W5", "W6"],
+    effects: { G1: ["protect"], G4: ["protect", "remedy"], G8: ["prevent"], E5: ["prevent"], E7: ["protect", "prevent"], W3: ["prevent"], W5: ["protect", "prevent"], W6: ["prevent"] }
   },
   {
     sector: "Mining",
@@ -82,7 +88,9 @@ const risks = [
       ["Prevention and worker voice", "Apply employer-pays recruitment, recruiter oversight and trusted rights education or representation."]
     ],
     suggested: ["G1", "G3", "G4", "E2", "E7", "W1", "W4", "W8"],
-    note: "Recruitment debt, deception and threats can combine to remove freely given consent. Immigration-related vulnerability requires strong safeguards against retaliation."
+    note: "Recruitment debt, deception and threats can combine to remove freely given consent. Immigration-related vulnerability requires strong safeguards against retaliation.",
+    hand: ["G1", "G3", "G4", "E2", "E7", "W1", "W4", "W8"],
+    effects: { G1: ["protect"], G3: ["prevent"], G4: ["remedy"], E2: ["remedy", "prevent"], E7: ["protect", "prevent"], W1: ["protect", "prevent"], W4: ["prevent"], W8: ["protect", "prevent"] }
   },
   {
     sector: "Trade",
@@ -96,7 +104,9 @@ const risks = [
       ["Prevention and worker voice", "Improve traceability and purchasing practices with worker-led monitoring and representation."]
     ],
     suggested: ["G6", "G7", "E4", "E5", "E6", "W2", "W6", "W7"],
-    note: "Traceability is not remedy. A credible response establishes facts, protects people and addresses business practices that contributed to the risk."
+    note: "Traceability is not remedy. A credible response establishes facts, protects people and addresses business practices that contributed to the risk.",
+    hand: ["G6", "G7", "E4", "E5", "E6", "W2", "W6", "W7"],
+    effects: { G6: ["remedy"], G7: ["remedy"], E4: ["remedy"], E5: ["prevent"], E6: ["protect", "remedy"], W2: ["prevent"], W6: ["protect", "prevent"], W7: ["prevent"] }
   },
   {
     sector: "Domestic work",
@@ -110,19 +120,34 @@ const risks = [
       ["Prevention and worker voice", "Extend effective protection, regulate the agency and provide independent complaint and representation routes."]
     ],
     suggested: ["G1", "G2", "G3", "G4", "G5", "E1", "E3", "W5", "W8"],
-    note: "Document retention, isolation and restriction of movement are serious warning signs. Immediate protection must not wait for a wider policy process."
+    note: "Document retention, isolation and restriction of movement are serious warning signs. Immediate protection must not wait for a wider policy process.",
+    hand: ["G1", "G2", "G3", "G5", "E1", "E3", "W5", "W8"],
+    effects: { G1: ["protect"], G2: ["protect", "remedy"], G3: ["prevent"], G5: ["prevent"], E1: ["remedy"], E3: ["protect"], W5: ["prevent"], W8: ["protect", "prevent"] }
   }
 ];
 
-const defaultState = () => ({
+const STORAGE_KEY = "foa-forced-labour-card-game-v2";
+const OUTCOME_LABELS = {
+  protect: "immediate protection",
+  remedy: "remedy or enforcement",
+  prevent: "prevention or worker voice"
+};
+
+const defaultState = (mode = null, teamName = "") => ({
   current: 0,
   broken: Array(risks.length).fill(false),
   resolved: Array(risks.length).fill(false),
-  checked: Array(risks.length).fill(null).map(() => [false, false, false]),
+  checked: Array.from({ length: risks.length }, () => [false, false, false]),
   revealed: Array(risks.length).fill(false),
+  selected: Array.from({ length: risks.length }, () => []),
+  feedback: Array(risks.length).fill(""),
+  attempts: Array(risks.length).fill(0),
   seconds: 150,
+  elapsedSeconds: 0,
   running: false,
-  started: false
+  started: false,
+  mode,
+  teamName
 });
 
 let state = loadState();
@@ -131,31 +156,49 @@ let toastTimeout = null;
 
 const $ = (id) => document.getElementById(id);
 const els = {
-  chainTrack: $("chainTrack"), score: $("scoreValue"), round: $("roundNumber"), sector: $("sectorBadge"),
-  title: $("riskTitle"), scenario: $("scenarioText"), question: $("questionText"), timer: $("timer"),
+  chainTrack: $("chainTrack"), score: $("scoreValue"), modeChip: $("modeChip"), round: $("roundNumber"), sector: $("sectorBadge"),
+  title: $("riskTitle"), scenario: $("scenarioText"), question: $("questionText"), tableRule: $("tableRule"), timer: $("timer"),
   timerButton: $("timerButton"), addTime: $("addTimeButton"), reveal: $("revealButton"),
   response: $("responseCheck"), criteria: $("criteriaList"), suggested: $("suggestedCards"), legal: $("legalNote"),
   break: $("breakButton"), unresolved: $("unresolvedButton"), next: $("nextButton"),
+  teamPanel: $("teamHandPanel"), virtualHand: $("virtualHand"), selectedCount: $("selectedCount"),
+  teamFeedback: $("teamFeedback"), testCards: $("testCardsButton"), teamNameInput: $("teamNameInput"),
   start: $("startDialog"), instructions: $("instructionsDialog"), results: $("resultsDialog"), toast: $("toast"), printZone: $("printZone")
 };
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem("break-the-chain-state"));
-    if (saved && Array.isArray(saved.broken) && saved.broken.length === risks.length) return { ...defaultState(), ...saved, running: false };
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && Array.isArray(saved.broken) && saved.broken.length === risks.length) {
+      const restored = { ...defaultState(saved.mode, saved.teamName), ...saved, running: false };
+      restored.selected = Array.isArray(saved.selected) && saved.selected.length === risks.length ? saved.selected : defaultState().selected;
+      restored.feedback = Array.isArray(saved.feedback) && saved.feedback.length === risks.length ? saved.feedback : defaultState().feedback;
+      return restored;
+    }
   } catch (_) {}
   return defaultState();
 }
 
 function saveState() {
-  localStorage.setItem("break-the-chain-state", JSON.stringify({ ...state, running: false }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, running: false }));
 }
 
 function render() {
+  renderMode();
   renderChain();
   renderRisk();
   renderTimer();
   saveState();
+}
+
+function renderMode() {
+  const isTeam = state.mode === "team";
+  document.body.classList.toggle("mode-team", isTeam);
+  document.querySelectorAll(".facilitator-only").forEach(element => { element.hidden = isTeam; });
+  els.teamPanel.hidden = !isTeam;
+  if (!state.mode) els.modeChip.textContent = "Choose a mode";
+  else if (isTeam) els.modeChip.textContent = state.teamName || "Team Challenge";
+  else els.modeChip.textContent = "Facilitator mode";
 }
 
 function renderChain() {
@@ -177,13 +220,16 @@ function renderChain() {
 
 function renderRisk() {
   const risk = risks[state.current];
+  const isTeam = state.mode === "team";
   els.round.textContent = state.current + 1;
   els.sector.textContent = risk.sector;
   els.title.textContent = risk.title;
   els.scenario.textContent = risk.scenario;
   els.question.textContent = risk.question;
-  els.response.hidden = !state.revealed[state.current];
-  els.reveal.textContent = state.revealed[state.current] ? "Hide response check" : "Reveal response check";
+  els.tableRule.innerHTML = isTeam
+    ? "<strong>Team rule:</strong> choose exactly three cards. Your response must include worker voice and at least two actor groups."
+    : "<strong>At the table:</strong> describe your cards, but do not show them. The facilitator may break the link without revealing the check.";
+
   els.criteria.innerHTML = "";
   risk.criteria.forEach(([label, text], index) => {
     const item = document.createElement("label");
@@ -191,20 +237,94 @@ function renderRisk() {
     item.innerHTML = `<input type="checkbox" ${state.checked[state.current][index] ? "checked" : ""}><span><strong>${label}</strong><span>${text}</span></span>`;
     item.querySelector("input").addEventListener("change", (event) => {
       state.checked[state.current][index] = event.target.checked;
-      updateDecisionState();
       saveState();
     });
     els.criteria.appendChild(item);
   });
   els.suggested.textContent = risk.suggested.map(id => instrumentById(id).title).join(" · ");
   els.legal.textContent = risk.note;
+
+  if (isTeam) {
+    els.response.hidden = true;
+    renderTeamHand();
+  } else {
+    els.response.hidden = !state.revealed[state.current];
+    els.reveal.textContent = state.revealed[state.current] ? "Hide optional response check" : "Reveal optional response check";
+  }
   updateDecisionState();
+}
+
+function renderTeamHand() {
+  const risk = risks[state.current];
+  const selection = state.selected[state.current];
+  const done = state.resolved[state.current];
+  els.virtualHand.innerHTML = "";
+  risk.hand.forEach(id => {
+    const card = instrumentById(id);
+    const selected = selection.includes(id);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `virtual-card ${card.css}${selected ? " selected" : ""}`;
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+    button.disabled = done || (selection.length >= 3 && !selected);
+    button.innerHTML = `<span class="virtual-card-meta"><span>${card.group}</span><span>${card.id}</span></span><strong>${card.title}</strong><span class="virtual-card-detail">${card.detail}</span>`;
+    button.addEventListener("click", () => toggleTeamCard(id));
+    els.virtualHand.appendChild(button);
+  });
+  els.selectedCount.textContent = `${selection.length} / 3 selected`;
+  els.selectedCount.classList.toggle("ready", selection.length === 3);
+  els.teamFeedback.textContent = state.feedback[state.current] || "Discuss the eight cards, then select the strongest three-card response.";
+  els.teamFeedback.classList.toggle("success", done && state.broken[state.current]);
+  els.testCards.disabled = done || selection.length !== 3;
+  els.testCards.textContent = done ? "Link broken" : "Test our 3 cards";
+}
+
+function toggleTeamCard(id) {
+  if (state.mode !== "team" || state.resolved[state.current]) return;
+  const selection = state.selected[state.current];
+  const index = selection.indexOf(id);
+  if (index >= 0) selection.splice(index, 1);
+  else if (selection.length < 3) selection.push(id);
+  state.feedback[state.current] = "";
+  renderTeamHand();
+  saveState();
+}
+
+function testTeamSelection() {
+  if (state.mode !== "team" || state.resolved[state.current]) return;
+  const risk = risks[state.current];
+  const selection = state.selected[state.current];
+  if (selection.length !== 3) return;
+
+  state.attempts[state.current] += 1;
+  const groups = new Set(selection.map(id => instrumentById(id).group));
+  const hasWorkerVoice = selection.some(id => id.startsWith("W"));
+  const covered = new Set(selection.flatMap(id => risk.effects[id] || []));
+  const missing = Object.keys(OUTCOME_LABELS).filter(outcome => !covered.has(outcome));
+  const hints = missing.map(outcome => OUTCOME_LABELS[outcome]);
+  if (!hasWorkerVoice) hints.push("a Workers card");
+  if (groups.size < 2) hints.push("instruments from at least two actor groups");
+
+  if (hints.length === 0) {
+    state.feedback[state.current] = "Strong joint response: protection, remedy and prevention are covered—with worker voice included.";
+    resolveCurrent(true);
+    return;
+  }
+
+  state.feedback[state.current] = `Not yet. Reconsider your cards: the response still needs ${joinNaturalLanguage(hints)}.`;
+  renderTeamHand();
+  saveState();
+}
+
+function joinNaturalLanguage(items) {
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
 }
 
 function updateDecisionState() {
   const done = state.resolved[state.current];
-  const complete = state.checked[state.current].every(Boolean);
-  els.break.disabled = done || !complete;
+  els.break.disabled = done;
   els.unresolved.disabled = done;
   els.next.disabled = !done;
   els.next.innerHTML = state.current === risks.length - 1 ? "See results <span aria-hidden=\"true\">→</span>" : "Next risk <span aria-hidden=\"true\">→</span>";
@@ -218,40 +338,43 @@ function renderTimer() {
   els.timerButton.textContent = state.running ? "Pause timer" : state.seconds === 0 ? "Reset timer" : "Start timer";
 }
 
+function runTimer() {
+  clearInterval(interval);
+  interval = setInterval(() => {
+    state.seconds = Math.max(0, state.seconds - 1);
+    state.elapsedSeconds += 1;
+    if (state.seconds === 0) {
+      state.running = false;
+      clearInterval(interval);
+      showToast(state.mode === "team" ? "Time is up—make your final three-card choice." : "Time. Ask for the group's final joint response.");
+    }
+    renderTimer();
+    saveState();
+  }, 1000);
+}
+
 function toggleTimer() {
   if (state.seconds === 0) state.seconds = 150;
   state.running = !state.running;
-  if (state.running) {
-    clearInterval(interval);
-    interval = setInterval(() => {
-      state.seconds = Math.max(0, state.seconds - 1);
-      if (state.seconds === 0) {
-        state.running = false;
-        clearInterval(interval);
-        showToast("Time. Ask for the group's final joint response.");
-      }
-      renderTimer();
-    }, 1000);
-  } else {
-    clearInterval(interval);
-  }
+  if (state.running) runTimer();
+  else clearInterval(interval);
   renderTimer();
   saveState();
 }
 
-function stopAndResetTimer() {
+function stopTimer(reset = false) {
   clearInterval(interval);
   state.running = false;
-  state.seconds = 150;
+  if (reset) state.seconds = 150;
   renderTimer();
 }
 
 function resolveCurrent(isBroken) {
   state.resolved[state.current] = true;
   state.broken[state.current] = isBroken;
-  stopAndResetTimer();
+  stopTimer(false);
   render();
-  showToast(isBroken ? "Link broken: the response covers protection, remedy and prevention." : "Link remains: carry the missing outcomes into the debrief.");
+  showToast(isBroken ? "Link broken! Protection, remedy and prevention are covered." : "Link remains unresolved. Carry the missing outcomes into the debrief.");
 }
 
 function nextRisk() {
@@ -259,7 +382,9 @@ function nextRisk() {
   if (state.current < risks.length - 1) {
     state.current += 1;
     state.seconds = 150;
+    state.running = state.mode === "team";
     render();
+    if (state.running) runTimer();
     window.scrollTo({ top: 0, behavior: "smooth" });
   } else {
     showResults();
@@ -270,8 +395,11 @@ function showResults() {
   const score = state.broken.filter(Boolean).length;
   $("resultsSymbol").textContent = score;
   if (score === 6) {
-    $("resultsTitle").textContent = "All six links are broken";
-    $("resultsCopy").textContent = "For this simulation, every response combined immediate protection, remedy and sustainable prevention.";
+    $("resultsTitle").textContent = state.mode === "team" && state.teamName ? `${state.teamName} broke the chain!` : "All six links are broken";
+    const time = formatElapsed(state.elapsedSeconds);
+    $("resultsCopy").textContent = state.mode === "team"
+      ? `You completed all six links in ${time}. Every successful response combined protection, remedy, prevention and worker voice.`
+      : "For this simulation, every response combined immediate protection, remedy and sustainable prevention.";
   } else if (score >= 4) {
     $("resultsTitle").textContent = "A strong response—with gaps to examine";
     $("resultsCopy").textContent = `${score} of 6 links were broken. The unresolved links show where authority, information, remedy or worker voice was missing.`;
@@ -282,18 +410,42 @@ function showResults() {
   els.results.showModal();
 }
 
-function resetGame(confirmFirst = true) {
-  if (confirmFirst && !window.confirm("Reset all six links and start again?")) return;
-  clearInterval(interval);
-  state = defaultState();
-  localStorage.removeItem("break-the-chain-state");
-  render();
+function formatElapsed(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function startGame() {
-  state.started = true;
-  els.start.close();
+function resetGame(confirmFirst = true) {
+  if (confirmFirst && !window.confirm("Reset the game and return to mode selection?")) return;
+  clearInterval(interval);
+  if (els.results.open) els.results.close();
+  state = defaultState();
+  localStorage.removeItem(STORAGE_KEY);
   render();
+  if (!els.start.open) els.start.showModal();
+}
+
+function startMode(mode) {
+  const teamName = mode === "team" ? els.teamNameInput.value.trim() : "";
+  clearInterval(interval);
+  state = defaultState(mode, teamName);
+  state.started = true;
+  state.running = mode === "team";
+  if (els.start.open) els.start.close();
+  render();
+  if (state.running) runTimer();
+}
+
+function restartSameMode() {
+  const mode = state.mode || "facilitator";
+  const teamName = state.teamName;
+  clearInterval(interval);
+  state = defaultState(mode, teamName);
+  state.started = true;
+  state.running = mode === "team";
+  render();
+  if (state.running) runTimer();
 }
 
 function showToast(message) {
@@ -321,15 +473,15 @@ function buildPrintPack() {
   const guide = document.createElement("section");
   guide.className = "print-guide";
   guide.innerHTML = `
-    <h1>Break the Chain</h1>
-    <p class="guide-subtitle">Facilitator quick guide · 8 participants · 25–30 minutes</p>
+    <h1>FOA–Forced Labour Card Game</h1>
+    <p class="guide-subtitle">Facilitator quick guide · 8 participants · about 25 minutes</p>
     <div class="guide-columns">
-      <div class="guide-section"><h2>Set up</h2><ol><li>Cut and shuffle all 24 instrument cards.</li><li>Deal three cards to each participant.</li><li>Project the online board.</li><li>Participants may describe cards, but may not show them.</li></ol></div>
-      <div class="guide-section"><h2>Each round</h2><ol><li>Read the risk and start the 2:30 timer.</li><li>Participants combine instruments into one joint response.</li><li>Reveal the response check.</li><li>Break the link only when protection, remedy and prevention are covered.</li></ol></div>
-      <div class="guide-section"><h2>Be generous</h2><p>There is no single correct combination. Accept any defensible proposal that achieves all three outcomes.</p></div>
+      <div class="guide-section"><h2>Set up</h2><ol><li>Cut and shuffle all 24 instrument cards.</li><li>Deal three cards to each participant.</li><li>Project the online board and select Facilitator mode.</li><li>Participants may describe cards, but may not show them.</li></ol></div>
+      <div class="guide-section"><h2>Each link</h2><ol><li>Read the risk and start the 2:30 timer.</li><li>Participants combine instruments into one joint response.</li><li>When the proposal is credible, select Break this link.</li><li>The optional response check can support your debrief; it never has to be revealed.</li></ol></div>
+      <div class="guide-section"><h2>Be generous</h2><p>There is no single correct combination. Accept any defensible proposal that achieves protection, remedy and prevention.</p></div>
       <div class="guide-section"><h2>Non-negotiable safeguards</h2><ul><li>Urgent protection and enforcement do not wait for dialogue.</li><li>Worker voice does not transfer responsibility to workers.</li><li>Indicators prompt inquiry; they are not a numerical legal test.</li></ul></div>
       <div class="guide-section"><h2>Debrief</h2><ol><li>What information did worker representatives surface?</li><li>Which actions had to be immediate?</li><li>What remedied harm versus preventing recurrence?</li><li>What was missing when a constituency could not contribute?</li></ol></div>
-      <div class="guide-section"><h2>Timing</h2><p>Set-up 3 min · Six rounds 15 min · Debrief 7–10 min.</p></div>
+      <div class="guide-section"><h2>Timing</h2><p>Set-up 3 min · Six links 15 min · Debrief 7–10 min.</p></div>
     </div>`;
   els.printZone.appendChild(guide);
 }
@@ -351,34 +503,35 @@ function registerWebMCP() {
   if (!context?.registerTool) return;
   const tools = [
     {
-      name: "start_break_the_chain_game",
-      title: "Start Break the Chain",
-      description: "Reset the board and start the Break the Chain classroom game at link 1.",
+      name: "start_foa_forced_labour_game",
+      title: "Start FOA–Forced Labour Card Game",
+      description: "Reset the board and start the facilitator version at link 1.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute: async () => { resetGame(false); state.started = true; if (els.start.open) els.start.close(); render(); return { current_link: 1, broken_links: 0 }; }
+      execute: async () => { state = defaultState("facilitator"); state.started = true; if (els.start.open) els.start.close(); render(); return { current_link: 1, broken_links: 0 }; }
     },
     {
-      name: "show_break_the_chain_link",
+      name: "show_forced_labour_link",
       title: "Show game link",
       description: "Move the visible board to one of the six forced-labour risk links.",
       inputSchema: { type: "object", properties: { link: { type: "integer", minimum: 1, maximum: 6 } }, required: ["link"], additionalProperties: false },
       annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute: async (input) => { if (!Number.isInteger(input?.link) || input.link < 1 || input.link > 6) throw new Error("link must be an integer from 1 to 6"); state.current = input.link - 1; stopAndResetTimer(); render(); return { current_link: input.link, title: risks[state.current].title }; }
+      execute: async (input) => { if (!Number.isInteger(input?.link) || input.link < 1 || input.link > 6) throw new Error("link must be an integer from 1 to 6"); state.current = input.link - 1; stopTimer(true); render(); return { current_link: input.link, title: risks[state.current].title }; }
     },
     {
-      name: "record_break_the_chain_result",
+      name: "record_forced_labour_link_result",
       title: "Record link result",
-      description: "Record the current link as broken or unresolved after the group proposes its response.",
+      description: "Record the current facilitator-mode link as broken or unresolved.",
       inputSchema: { type: "object", properties: { broken: { type: "boolean" } }, required: ["broken"], additionalProperties: false },
       annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute: async (input) => { if (typeof input?.broken !== "boolean") throw new Error("broken must be true or false"); if (input.broken) state.checked[state.current] = [true, true, true]; resolveCurrent(input.broken); return { link: state.current + 1, broken: input.broken, total_broken: state.broken.filter(Boolean).length }; }
+      execute: async (input) => { if (typeof input?.broken !== "boolean") throw new Error("broken must be true or false"); resolveCurrent(input.broken); return { link: state.current + 1, broken: input.broken, total_broken: state.broken.filter(Boolean).length }; }
     }
   ];
   tools.forEach(tool => { try { void Promise.resolve(context.registerTool(tool)).catch(() => {}); } catch (_) {} });
 }
 
-$("startGameButton").addEventListener("click", startGame);
+$("startFacilitatorButton").addEventListener("click", () => startMode("facilitator"));
+$("startTeamButton").addEventListener("click", () => startMode("team"));
 $("startPrintButton").addEventListener("click", printPack);
 $("startHowButton").addEventListener("click", () => els.instructions.showModal());
 $("howButton").addEventListener("click", () => els.instructions.showModal());
@@ -390,21 +543,17 @@ els.addTime.addEventListener("click", () => { state.seconds += 30; renderTimer()
 els.reveal.addEventListener("click", () => { state.revealed[state.current] = !state.revealed[state.current]; renderRisk(); saveState(); });
 els.break.addEventListener("click", () => resolveCurrent(true));
 els.unresolved.addEventListener("click", () => resolveCurrent(false));
+els.testCards.addEventListener("click", testTeamSelection);
 els.next.addEventListener("click", nextRisk);
 $("reviewButton").addEventListener("click", () => els.results.close());
-$("playAgainButton").addEventListener("click", () => {
-  els.results.close();
-  resetGame(false);
-  state.started = true;
-  render();
-});
+$("playAgainButton").addEventListener("click", () => { els.results.close(); restartSameMode(); });
 document.querySelectorAll("[data-close]").forEach(button => button.addEventListener("click", () => $(button.dataset.close).close()));
 
 document.addEventListener("keydown", (event) => {
   if (event.target.matches("input, button, summary")) return;
   if (event.key.toLowerCase() === "f") toggleFullscreen();
   if (event.code === "Space") { event.preventDefault(); toggleTimer(); }
-  if (event.key.toLowerCase() === "r") { state.revealed[state.current] = !state.revealed[state.current]; renderRisk(); }
+  if (event.key.toLowerCase() === "r" && state.mode === "facilitator") { state.revealed[state.current] = !state.revealed[state.current]; renderRisk(); }
   if (event.key.toLowerCase() === "n" && state.resolved[state.current]) nextRisk();
 });
 
