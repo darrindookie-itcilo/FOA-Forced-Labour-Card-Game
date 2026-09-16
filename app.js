@@ -339,8 +339,8 @@ function buildSuccessBreakdown(risk, selection) {
     const candidates = selection.filter(id => (risk.effects[id] || []).includes(outcome));
     const preferred = preferWorker ? candidates.filter(id => id.startsWith("W")) : candidates;
     const id = preferred.find(candidate => !used.has(candidate))
-      || preferred[0]
       || candidates.find(candidate => !used.has(candidate))
+      || preferred[0]
       || candidates[0];
     if (id) used.add(id);
     const card = instrumentById(id);
