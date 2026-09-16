@@ -126,7 +126,7 @@ const risks = [
   }
 ];
 
-const STORAGE_KEY = "foa-forced-labour-card-game-v2";
+const STORAGE_KEY = "foa-forced-labour-card-game-v3";
 const OUTCOME_LABELS = {
   protect: "immediate protection",
   remedy: "remedy or enforcement",
